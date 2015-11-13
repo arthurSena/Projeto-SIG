@@ -10,7 +10,7 @@ html, body{
 	bottom: 0;
 }
 
-#layers{
+/*#layers{
 	position: absolute;
 	z-index: 2;
 	background-color: rgba(0,60,136,0.7);
@@ -25,4 +25,4 @@ html, body{
 #layers > ul {
 	list-style: none;
 	
-}
+}*/
