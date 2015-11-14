@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>EPSG:4326 example</title>
+<script src="https://code.jquery.com/jquery-1.11.2.min.js"></script>
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+<link rel="stylesheet" href="http://openlayers.org/en/v3.9.0/css/ol.css" type="text/css">
+<script src="http://openlayers.org/en/v3.9.0/build/ol.js"></script>
+
+</head>
+<body>
+<div class="container-fluid">
+
+<div class="row-fluid">
+  <div class="span12">
+    <div id="map" class="map"></div>
+  </div>
+</div>
+
+ <div class="row-fluid">
+ 	<div class="span12">
+          <div id="info" class="alert alert-success">
+            &nbsp;
+          </div>
+        </div>
+
+ </div>
+
+
+</div>
+<script>
+// var layers = [
+//   new ol.layer.Tile({
+//     source: new ol.source.TileWMS({
+//     	preload: Infinity,
+//       url: 'http://localhost:8080/geoserver/nurc/wms',
+//       serverType:'geoserver',
+//       params: {
+//         'LAYERS': 'nurc:campina_bairros', 'TILED':true
+//       }
+//     })
+//   })
+// ];
+
+// var map = new ol.Map({
+//   layers: layers,
+//   target: 'map',
+//   view: new ol.View({
+//     projection: 'EPSG:5535',
+//     center: [0, 0],
+//     zoom: 2
+//   })
+// });
+
+
+// var layers = [
+  
+//   new ol.layer.Image({
+//     // extent: [-13884991, 2870341, -7455066, 6338219],
+//     source: new ol.source.ImageWMS({
+//       url: 'http://localhost:8080/geoserver/nurc/wms',
+//       params: {'LAYERS': 'nurc:campina_bairros'},
+//       serverType: 'geoserver'
+//     })
+//   })
+// ];
+// var map = new ol.Map({
+//   layers: layers,
+//   target: 'map',
+//   view: new ol.View({
+//     center: [0, 0],
+//     zoom: 4
+//   })
+// });
+
+var bairros =  new ol.source.TileWMS(/** @type {olx.source.TileWMSOptions} */ ({
+      url: 'http://localhost:8080/geoserver/nurc/wms',
+      params: {'LAYERS': 'nurc:campina_bairros', 'TILED': true},
+      serverType: 'geoserver'
+    }));
+
+
+var bairrosCG = new ol.layer.Tile({
+    source: bairros
+  });
+
+var layers = [
+  new ol.layer.Tile({
+    source: new ol.source.MapQuest({layer: 'osm'})
+  }),
+  bairrosCG
+];
+
+var view = new ol.View({
+	// projection : 'EPSG:5535',
+    center: [0, 0],
+    zoom: 5
+  });
+
+
+var map = new ol.Map({
+  layers: layers,
+  target: 'map',
+  view: view
+});
+
+var viewProjection = view.getProjection();
+var viewResolution = view.getResolution();
+
+map.on('singleclick', function(evt) {
+	document.getElementById('info').innerHTML = '';
+  var url = bairros.getGetFeatureInfoUrl(
+      evt.coordinate, viewResolution, viewProjection,
+      {'INFO_FORMAT': 'text/html'});
+  if (url) {
+    document.getElementById('info').innerHTML =
+        '<iframe seamless src="' +url + '"></iframe>';
+  }
+});
+
+
+</script>
+</body>
+</html>
