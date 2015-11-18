@@ -1,0 +1,331 @@
+
+<html>
+	<head>
+		<title>Projeto-SIG 2015.1</title>
+		<meta http-equiv="content-type" content="text/html;charset=utf-8" />
+		
+		<script src="http://openlayers.org/api/OpenLayers.js"></script>
+		<script src="MagnifyingGlass.js"></script>
+<link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+  <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+		
+	</head>
+	
+	
+
+	<script type="text/javascript">
+
+	OpenLayers.ProxyHost = "proxy.cgi?url=";
+
+	OpenLayers.Control.Click = OpenLayers.Class(OpenLayers.Control, {                
+        defaultHandlerOptions: {
+            'single': true,
+            'double': false,
+            'pixelTolerance': 0,
+            'stopSingle': false,
+            'stopDouble': false
+        },
+
+        initialize: function(options) {
+            this.handlerOptions = OpenLayers.Util.extend(
+                {}, this.defaultHandlerOptions
+            );
+            OpenLayers.Control.prototype.initialize.apply(
+                this, arguments
+            ); 
+            this.handler = new OpenLayers.Handler.Click(
+                this, {
+                    'click': this.trigger
+                }, this.handlerOptions
+            );
+        }, 
+
+        trigger: function(e) {
+		
+           if (inserir){
+				 var lonlat = map.getLonLatFromPixel(e.xy);
+			<!-- document.getElementById("click").innerHTML = "Coordenadas " + lonlat.lat + " N, " + -->
+                                      <!-- + lonlat.lon + " E"; -->
+			inserir = 0;
+			document.getElementById('map').style.cursor = "cursor:pointer"; 
+			document.getElementById('btnCadastro').innerHTML = "Cadastrar Ponto";
+			$("#btnCadastro").removeClass("btn btn-danger").addClass("btn btn-primary");
+			document.getElementById('lat').value = lonlat.lat + " N ";
+			document.getElementById('long').value = lonlat.lon+ " E ";
+			$('#myModal').modal('show');
+            <!-- alert("Coordenadas " + lonlat.lat + " N, " + -->
+                                      <!-- + lonlat.lon + " E"); -->
+			
+		   }
+        }
+
+    });
+    
+    var inserir = 0;
+	var map;
+	var highlightLayer;
+	var infoControls;
+	function init(){
+	
+
+		map = new OpenLayers.Map('map',{
+		projection:'EPSG:4326',
+		 maxResolution: 0.0005,
+		 zoom:8,
+		numZoomLevels: 5
+		});
+		
+		var overview = new OpenLayers.Control.OverviewMap({
+			mapOptions: {
+				projection: new OpenLayers.Projection("EPSG:4326"),
+				maxResolution: 0.0015,
+				numZoomLevels: 5
+			}
+		});
+
+		var osm = new OpenLayers.Layer.OSM();
+
+		var bairros_cg = new OpenLayers.Layer.WMS(
+			"Bairros", "http://localhost:8080/geoserver/nurc/wms",
+			{layers: 'nurc:campina_bairros', transparent: "true"},
+			{singleTile: false, isBaseLayer: false, displayOutsideMaxExtent : true, visibility: false, yx : {'EPSG:4326' : true}}
+		);
+		
+		var pontos = new OpenLayers.Layer.WMS(
+			"Pontos", "http://localhost:8080/geoserver/nurc/wms",
+			{layers: 'nurc:pontos', transparent: "true"},
+			{singleTile: false, isBaseLayer: false, displayOutsideMaxExtent : true, visibility: false, yx : {'EPSG:4326' : true}}
+		);
+
+		highlightLayer = new OpenLayers.Layer.Vector("Highlighted Features", {
+            displayInLayerSwitcher: false, 
+            isBaseLayer: false 
+            }
+        );
+
+        infoControls = {
+            click: new OpenLayers.Control.WMSGetFeatureInfo({
+                url: 'http://localhost:8080/geoserver/nurc/wms', 
+                title: 'Identify features by clicking',
+                layers: [bairros_cg, pontos],
+                queryVisible: true
+            })
+            //hover: new OpenLayers.Control.WMSGetFeatureInfo({
+            //    url: 'http://demo.boundlessgeo.com/geoserver/wms', 
+            //    title: 'Identify features by clicking',
+            //    layers: [water],
+            //   hover: true,
+                // defining a custom format options here
+            //    formatOptions: {
+            //        typeName: 'water_bodies', 
+            //        featureNS: 'http://www.openplans.org/topp'
+            //    },
+            //    queryVisible: true
+            //})
+        };
+
+		map.addLayers([osm]);
+
+		map.addLayers([bairros_cg]);
+		
+		map.addLayers([pontos]);
+		
+		for (var i in infoControls) { 
+            infoControls[i].events.register("getfeatureinfo", this, showInfo);
+            map.addControl(infoControls[i]); 
+        }
+
+		//controles
+		map.addControl(new OpenLayers.Control.LayerSwitcher());
+		map.setCenter(new OpenLayers.LonLat(-35.8,-7.2).transform(new OpenLayers.Projection("EPSG:4326"), map.getProjectionObject()), 12);
+
+		var click = new OpenLayers.Control.Click();
+        map.addControl(click);
+        click.activate();
+		map.addControl(overview);
+		map.addControl(new OpenLayers.Control.MagnifyingGlass());
+
+      //  infoControls.click.activate();
+
+	};
+
+	function showInfo(evt) {
+        if (evt.features && evt.features.length) {
+             highlightLayer.destroyFeatures();
+             highlightLayer.addFeatures(evt.features);
+             highlightLayer.redraw();
+        } else {
+            document.getElementById('responseText').innerHTML = evt.text;
+        }
+    };
+
+    function toggleControl(element) {
+        for (var key in infoControls) {
+            var control = infoControls[key];
+            if (element.value == key && element.checked) {
+                control.activate();
+            } else {
+                control.deactivate();
+            }
+        }
+    };
+
+    function toggleFormat(element) {
+        for (var key in infoControls) {
+            var control = infoControls[key];
+            control.infoFormat = element.value;
+        }
+    }
+
+    function toggleLayers(element) {
+        for (var key in infoControls) {
+            var control = infoControls[key];
+            //if (element.value == 'Specified') {
+                control.layers = [bairros_cg];
+            //} else {
+                //control.layers = null;
+            //}
+        }
+    }
+	
+	function inserirPonto(){
+		
+		if (inserir == 0) {
+			inserir = 1;
+			document.getElementById('map').style.cursor = "cursor:hand"; 
+			document.getElementById('btnCadastro').innerHTML = "Cancelar";
+			<!-- document.getElementById('btnCadastro').style.className = "btn btn-danger"; -->
+			$("#btnCadastro").removeClass("btn btn-primary").addClass("btn btn-danger");
+		}
+		else{
+			inserir = 0;
+			document.getElementById('map').style.cursor = "cursor:pointer"; 
+			document.getElementById('btnCadastro').innerHTML = "Cadastrar Ponto";
+			<!-- document.getElementById('btnCadastro').style.className = "btn btn-primary"; -->
+			$("#btnCadastro").removeClass("btn btn-danger").addClass("btn btn-primary");
+		}
+	}
+
+	</script>
+
+
+	<body onload="init()" style="background-color:#708090;">
+		 <div style= "text-align:center;" class="container">	
+	<div class="page-header" style="background-color:white;border-radius: 1vw;">
+      <div class="container">
+        <h1>Projeto - SIG 2015.1</h1>
+		
+        <button id="btnCadastro"type="button" class="btn btn-primary" onclick="inserirPonto()">Cadastrar Ponto </button>
+		<button id="btnInfo"type="button" class="btn btn-info" data-toggle="modal" data-target="#modalInfo"> Informações </button>
+			<div id="myModal" class="modal fade" role="dialog">
+			  <div class="modal-dialog">
+
+				<!-- Modal de cadastro-->
+				<div class="modal-content">
+				  <div class="modal-header">
+					<button type="button" class="close" data-dismiss="modal">&times;</button>
+					<h4 class="modal-title">Cadastro de Crime</h4>
+				  </div>
+				  <div class="modal-body">
+					<form role="form" action="gravar_dados.php" method="POST" >
+					  <div class="form-group">
+						<label for="tipo">Tipo</label>
+						<select class="form-control" id="tipo" >
+							<option>Roubo</option>
+							<option>Furto</option>
+							<option>Assalto</option>
+							<option>Outro</option>
+						  </select>
+					  </div>
+					  <label for="desc">Descrição:</label>
+						<textarea class="form-control" rows="3" id="desc"></textarea>
+					  <label for="lat">Latitude:</label>
+						<input type="text" class="form-control" id="lat">
+					  <label for="long">Longitude:</label>
+						<input type="text" class="form-control" id="long">
+					  <button type="submit" class="btn btn-default">Submit</button>
+					</form>
+				  </div>
+				  <div class="modal-footer">
+					<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+				  </div>
+				</div>
+				
+				
+			  </div>
+			  
+			
+      </div>
+	  
+	    <div id="modalInfo" class="modal fade" role="dialog">
+			  <div class="modal-dialog">
+
+				<!-- Modal de info-->
+					<div class="modal-content">
+				  <div class="modal-header">
+					<button type="button" class="close" data-dismiss="modal">&times;</button>
+					<h2 class="modal-title">Informações</h2>
+				  </div>
+				  <div class="modal-body">
+						<ul class="center" style="list-style-type: none;"> 
+							<b><h4>Grupo:</h4></b>
+							<li>
+								<h5>Arthur Sena</h5>
+							</li>
+							<li>
+								<h5>Victor Baptista</h5>
+							</li>
+							<li>
+								<h5>Thallysson</h5>
+							</li>
+						</ul>
+				  </div>
+				  <div class="modal-footer">
+					<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+				  </div>
+				</div>
+
+				
+			  </div>
+			  
+			</div>
+	  
+    </div>
+
+    
+     	
+	</div>
+	
+	<div style="margin:top:2vw;	border:1px solid black; width:100%; height:70%; " id="map"></div>
+     	<!-- <ul id="control">
+            
+                <input name="controlType" id="click"
+                       onclick="toggleControl(this);" checked="checked" />
+            
+        </ul> -->
+
+     <!--    <ul id="layers">
+            <li>
+                <input type="radio" name="layerSelection" value="Specified" id="Specified"
+                       onclick="toggleLayers(this);" checked="checked" />
+                <label for="Specified">Get water body info</label>
+            </li>
+            <li>
+                <input type="radio" name="layerSelection" value="Auto" id="Auto" 
+                       onclick="toggleLayers(this);" />
+                <label for="Auto">Get info for visible layers</label>
+            </li>
+        </ul> -->
+		
+		<div class="row">
+				<div class="col-sm-4">
+					
+				</div>
+		</div>
+		
+		
+	
+    </body>
+
+</html>
