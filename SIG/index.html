@@ -1,0 +1,442 @@
+
+<html>
+	<head>
+		<title>Projeto-SIG 2015.1</title>
+		<meta http-equiv="content-type" content="text/html;charset=utf-8" />
+        <script src="http://maps.google.com/maps/api/js?v=3&amp;sensor=false"></script>
+		<script src="http://openlayers.org/api/OpenLayers.js"></script>
+		<script src="MagnifyingGlass.js"></script>
+		<link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+		<link rel="stylesheet" href="cursor/font-awesome.min.css">
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+		<script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+		<script src="https://cdn.rawgit.com/jwarby/jquery-awesome-cursor/master/dist/jquery.awesome-cursor.min.js"></script>
+	
+		
+	</head>
+	
+	<style> 
+	
+		
+	
+			.olControlZoomBoxActiveCustom {
+			cursor: url("https://www.google.com/mapmaker/mapfiles/marker-k.png"), auto;
+			}
+	
+		.customCursor {
+			cursor: url("https://www.google.com/mapmaker/mapfiles/marker-k.png"), auto;
+		}
+	
+	</style>
+	
+
+	<script type="text/javascript">
+
+	OpenLayers.ProxyHost = "proxy.cgi?url=";
+
+	OpenLayers.Control.Click = OpenLayers.Class(OpenLayers.Control, {                
+        defaultHandlerOptions: {
+            'single': true,
+            'double': false,
+            'pixelTolerance': 0,
+            'stopSingle': false,
+            'stopDouble': false
+        },
+
+        initialize: function(options) {
+            this.handlerOptions = OpenLayers.Util.extend(
+                {}, this.defaultHandlerOptions
+            );
+            OpenLayers.Control.prototype.initialize.apply(
+                this, arguments
+            ); 
+            this.handler = new OpenLayers.Handler.Click(
+                this, {
+                    'click': this.trigger
+                }, this.handlerOptions
+            );
+        }, 
+
+        trigger: function(e) {
+		
+           if (inserir){
+				 var lonlat = map.getLonLatFromPixel(e.xy);
+			<!-- document.getElementById("click").innerHTML = "Coordenadas " + lonlat.lat + " N, " + -->
+                                      <!-- + lonlat.lon + " E"; -->
+			inserir = 0;
+			document.getElementById('map').style.cursor = "cursor:pointer"; 
+			document.getElementById('btnCadastro').innerHTML = "Cadastrar Ponto";
+			$("#btnCadastro").removeClass("btn btn-danger").addClass("btn btn-primary");
+			document.getElementById('lat').value = lonlat.lat ;
+			document.getElementById('long').value = lonlat.lon;
+			$('#myModal').modal('show');
+            <!-- alert("Coordenadas " + lonlat.lat + " N, " + -->
+                                      <!-- + lonlat.lon + " E"); -->
+			
+		   }
+        }
+
+    });
+    
+    var inserir = 0;
+	var map;
+	var highlightLayer;
+	var infoControls;
+	function init(){
+	
+
+		map = new OpenLayers.Map('map',{
+		projection:new OpenLayers.Projection('EPSG:900913'),
+		 maxResolution: 0.0005,
+		 zoom:8,
+		numZoomLevels: 5
+		});
+		
+		var overview = new OpenLayers.Control.OverviewMap({
+			mapOptions: {
+				projection: new OpenLayers.Projection("EPSG:4326"),
+				maxResolution: 0.0015,
+				numZoomLevels: 5
+			}
+		});
+
+		var osm = new OpenLayers.Layer.OSM();
+
+		var bairros_cg = new OpenLayers.Layer.WMS(
+			"Bairros", "http://localhost:8080/geoserver/nurc/wms",
+			{layers: 'nurc:bairros', transparent: "true"},
+			{singleTile: false, isBaseLayer: false, displayOutsideMaxExtent : true, visibility: false, yx : {'EPSG:4326' : true}}
+		);
+		
+		var pontos = new OpenLayers.Layer.WMS(
+			"Pontos", "http://localhost:8080/geoserver/nurc/wms",
+			{layers: 'nurc:pontos', transparent: "true"},
+			{singleTile: false, isBaseLayer: false, displayOutsideMaxExtent : true, visibility: true, yx : {'EPSG:4326' : true}}
+		);
+
+		highlightLayer = new OpenLayers.Layer.Vector("Highlighted Features", {
+            displayInLayerSwitcher: false, 
+            isBaseLayer: false 
+            }
+        );
+		
+		var googleLayers = [
+            new OpenLayers.Layer.Google(
+                "Google Physical",
+                {type: google.maps.MapTypeId.TERRAIN}
+            ),
+            new OpenLayers.Layer.Google(
+                "Google Streets", // the default
+                {numZoomLevels: 20}
+            ),
+            new OpenLayers.Layer.Google(
+                "Google Hybrid",
+                {type: google.maps.MapTypeId.HYBRID, numZoomLevels: 20}
+            ),
+            new OpenLayers.Layer.Google(
+                "Google Satellite",
+                {type: google.maps.MapTypeId.SATELLITE, numZoomLevels: 22}
+            )
+        ];
+
+        infoControls = {
+            click: new OpenLayers.Control.WMSGetFeatureInfo({
+                url: 'http://localhost:8080/geoserver/nurc/wms', 
+                title: 'Identify features by clicking',
+                layers: [bairros_cg, pontos],
+                queryVisible: true,
+				eventListeners: {
+                getfeatureinfo: function(event) {
+						console.log(event.features);	
+						 if (event.text.indexOf("Descricao:") != -1 || event.text.indexOf("Nome") != -1) { 
+                    map.addPopup(new OpenLayers.Popup.FramedCloud(
+                        "chicken", 
+                        map.getLonLatFromPixel(event.xy),
+                        null,
+                        event.text,
+                        null,
+                        true
+                    ));
+					}
+                }
+            }
+            }),
+            hover: new OpenLayers.Control.WMSGetFeatureInfo({
+                url: 'http://localhost:8080/geoserver/nurc/wms', 
+                title: 'Identify features by clicking',
+                layers:[bairros_cg, pontos],
+               hover: true,
+                 <!-- defining a custom format options here -->
+                <!-- formatOptions: { -->
+                    <!-- typeName: 'water_bodies',  -->
+                    <!-- featureNS: 'http:www.openplans.org/topp' -->
+                <!-- }, -->
+                queryVisible: true,
+				 <!-- getfeatureinfo: function(event) { -->
+				 <!-- console.log("sdfffffffffffff"); -->
+					<!-- console.log(map.getLonLatFromPixel(event.xy)); -->
+				 
+				 <!-- } -->
+            })
+        };
+
+		
+		
+		
+		for (var i in infoControls) { 
+            infoControls[i].events.register("getfeatureinfo", this, showInfo);
+            map.addControl(infoControls[i]); 
+        }
+		
+		map.addLayers([osm]);
+
+		
+		map.addLayers([bairros_cg]);
+		
+		map.addLayers([pontos]);
+		
+		map.addLayers(googleLayers);
+
+		//controles
+		map.addControl(new OpenLayers.Control.LayerSwitcher());
+		map.addControl(new OpenLayers.Control.MousePosition());
+		map.setCenter(new OpenLayers.LonLat(-35.8,-7.2).transform(new OpenLayers.Projection("EPSG:4326"), map.getProjectionObject()), 12);
+
+		var click = new OpenLayers.Control.Click();
+        map.addControl(click);
+        click.activate();
+		map.addControl(overview);
+		map.addControl(new OpenLayers.Control.MagnifyingGlass());
+
+        infoControls.click.activate();
+        infoControls.hover.activate();
+
+
+	};
+
+	function showInfo(evt) {
+        if (evt.features && evt.features.length) {
+             highlightLayer.destroyFeatures();
+             highlightLayer.addFeatures(evt.features);
+             highlightLayer.redraw();
+        } else {
+            document.getElementById('responseText').innerHTML = evt.text;
+        }
+    };
+
+    function toggleControl(element) {
+        for (var key in infoControls) {
+            var control = infoControls[key];
+            if (element.value == key && element.checked) {
+                control.activate();
+            } else {
+                control.deactivate();
+            }
+        }
+    };
+
+    function toggleFormat(element) {
+        for (var key in infoControls) {
+            var control = infoControls[key];
+            control.infoFormat = element.value;
+        }
+    }
+
+    function toggleLayers(element) {
+        for (var key in infoControls) {
+            var control = infoControls[key];
+            //if (element.value == 'Specified') {
+                control.layers = [bairros_cg];
+            //} else {
+                //control.layers = null;
+            //}
+        }
+    }
+	
+	function inserirPonto(){
+		
+		if (inserir == 0) {
+			inserir = 1;
+			document.getElementById('map').style.cursor = "cursor:hand"; 
+			document.getElementById('btnCadastro').innerHTML = "Cancelar";
+			<!-- document.getElementById('btnCadastro').style.className = "btn btn-danger"; -->
+			<!-- var d = document.getElementById("map"); -->
+			<!-- d.className = d.className + "olControlZoomBoxActive2"; -->
+			$("#OpenLayers_Map_2_OpenLayers_ViewPort").addClass("olControlZoomBoxActiveCustom");
+			$("#btnCadastro").removeClass("btn btn-primary").addClass("btn btn-danger");
+		}
+		else{
+			inserir = 0;
+			document.getElementById('map').style.cursor = "cursor:pointer"; 
+			document.getElementById('btnCadastro').innerHTML = "Cadastrar Ponto";
+			<!-- document.getElementById('btnCadastro').style.className = "btn btn-primary"; -->
+			$("#OpenLayers_Map_2_OpenLayers_ViewPort").removeClass("olControlZoomBoxActiveCustom");
+			$("#btnCadastro").removeClass("btn btn-danger").addClass("btn btn-primary");
+		}
+	}
+	
+	function mudarCursor(){
+		$("#OpenLayers_Map_2_OpenLayers_ViewPort").removeClass("olControlZoomBoxActiveCustom");
+			$("#btnCadastro").removeClass("btn btn-danger").addClass("btn btn-primary");
+	
+	}
+	
+	
+	jQuery(document).ready(function(){
+		jQuery('#formCadastro').submit(function(){
+			var dados = jQuery( this ).serialize();
+
+			jQuery.ajax({
+				type: "POST",
+				url: "gravar_dados.php",
+				data: dados,
+				success: function( data )
+				{
+					$('#myModal').modal('hide');
+					$('#responseModal').modal('show');
+					document.getElementById('resp').innerHTML = data;
+					console.log(data);
+					location.reload();
+				}
+				<!-- error: function(ajaxContext){ -->
+					<!-- $('#myModal').modal('hide'); -->
+					<!-- $('#responseModal').modal('show'); -->
+					<!-- document.getElementById('resp').innerHTML = data; -->
+				<!-- } -->
+			});
+			
+			return false;
+		});
+	});
+	
+	
+	
+<!-- $('html,body, map').awesomeCursor('pencil'); -->
+
+	</script>
+
+
+	<body  onload="init()" style="background-color:#708090;">
+		 <div style= "text-align:center;" class="container">	
+	<div name = "pgHeader"class="page-header" style="background-color:white;border-radius: 1vw;">
+      <div class="container">
+        <h1>Projeto - SIG 2015.1</h1>
+		
+        <button id="btnCadastro"type="button" class="btn btn-primary" onclick="inserirPonto()">Cadastrar Ponto </button>
+		<button id="btnInfo"type="button" class="btn btn-info" data-toggle="modal" data-target="#modalInfo"> Informações </button>
+			<div id="myModal" class="modal fade" role="dialog">
+			  <div class="modal-dialog">
+
+				<!-- Modal de cadastro-->
+				<div class="modal-content">
+				  <div class="modal-header">
+					<button type="button" class="close" data-dismiss="modal">&times;</button>
+					<h4 class="modal-title">Cadastro de Acidente</h4>
+				  </div>
+				  <div class="modal-body">
+					<form role="form" id = "formCadastro">
+					  <div class="form-group">
+						<label for="tipo">Tipo</label>
+						<select class="form-control" name="tipo" >
+							<option>Atropelamento</option>
+							<option>Choque com objeto fixo</option>
+							<option>Atropelamento de animal</option>
+							<option>Capotagem</option>
+							<option>Atropelamento e fuga</option>
+							<option>Choque com veiculo estacionado</option>
+							<option>Colisão frontal</option>
+							<option>Colisão traseira</option>
+							<option>Outro</option>
+						  </select>
+					  </div>
+					  <label for="desc">Descrição:</label>
+						<textarea class="form-control" rows="3" name="desc"></textarea>
+					  <label for="lat">Latitude:</label>
+						<input type="text" class="form-control" name= "lat"id="lat">
+					  <label for="long">Longitude:</label>
+						<input type="text" class="form-control"  name= "long"id="long">
+					  <button type="submit" class="btn btn-default">Submit</button>
+					</form>
+				  </div>
+				  <div class="modal-footer">
+					<button type="button" class="btn btn-default" data-dismiss="modal" onclick="mudarCursor()">Close</button>
+				  </div>
+				</div>
+				
+				
+			  </div>
+			  
+			
+      </div>
+	  
+	    <div id="modalInfo" class="modal fade" role="dialog">
+			  <div class="modal-dialog">
+
+				<!-- Modal de info-->
+					<div class="modal-content">
+				  <div class="modal-header">
+					<button type="button" class="close" data-dismiss="modal">&times;</button>
+					<h2 class="modal-title">Informações</h2>
+				  </div>
+				  <div class="modal-body">
+						<ul class="center" style="list-style-type: none;"> 
+							<b><h4>Grupo:</h4></b>
+							<li>
+								<h5>Arthur Sena</h5>
+							</li>
+							<li>
+								<h5>Victor Baptista</h5>
+							</li>
+							<li>
+								<h5>Thallysson</h5>
+							</li>
+						</ul>
+				  </div>
+				  <div class="modal-footer">
+					<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+				  </div>
+				</div>
+
+				
+			  </div>
+			  
+			</div>
+			
+			
+			<!-- Modal de Resposta-->
+			  <div class="modal fade" id="responseModal" role="dialog">
+				<div class="modal-dialog modal-sm">
+				  <div class="modal-content">
+					<div class="modal-header" style= "background-color:green;">
+					</div>
+					<div class="modal-body">
+					  <b><p id = "resp"></p></b>
+					</div>
+					<div class="modal-footer">
+					  <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+					</div>
+				  </div>
+				</div>
+			  </div>
+	  
+    </div>
+
+    
+     	
+	</div>
+			<div class="row" style = "border: 2px solid red;">
+
+				<div  style="margin:top:2vw;border:1px solid black; width:100%; height:70%; " id="map"></div>
+			</div>
+		<div class="row" style="text-align:center;">
+				<div class="col-sm-6  col-md-offset-3" style="background-color:white;">
+					 <div id="responseText">
+					</div>
+				</div>
+		
+		
+		
+	
+    </body>
+
+</html>
